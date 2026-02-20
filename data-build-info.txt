@@ -1,0 +1,4 @@
+groups=8
+items=37
+missing_address=25
+source=평내호평.docx

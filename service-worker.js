@@ -1,4 +1,4 @@
-const CACHE = 'keyword-search-v1';
+const CACHE = 'keyword-search-v5';
 const ASSETS = [
   './',
   './index.html',
