@@ -88,44 +88,44 @@ function render(){
           return;
         }
 
-        // 1) 주소 → 위경도(간단 지오코딩) : 한 번 찾은 좌표는 localStorage에 캐시
-        const cacheKey = 'geo:' + keyword;
-        let lat=null, lon=null;
+        // 좌표변환 없이 T맵 검색 우선 방식 (iPhone/PWA에서 더 안정적)
+        try{ await navigator.clipboard.writeText(keyword); }catch(e){}
 
-        try{
-          const cached = localStorage.getItem(cacheKey);
-          if(cached){
-            const obj = JSON.parse(cached);
-            lat = obj.lat; lon = obj.lon;
-          }else{
-            const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=kr&q=${encodeURIComponent(keyword)}`;
-            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            const data = await res.json();
-            if(data && data[0] && data[0].lat && data[0].lon){
-              lat = parseFloat(data[0].lat);
-              lon = parseFloat(data[0].lon);
-              localStorage.setItem(cacheKey, JSON.stringify({lat, lon}));
-            }else{
-              throw new Error('no geocode result');
-            }
+        const encoded = encodeURIComponent(keyword);
+        // 기기/버전마다 파라미터명이 다를 수 있어 순차 시도
+        const candidates = [
+          `tmap://search?name=${encoded}`,
+          `tmap://search?query=${encoded}`,
+          `tmap://search?searchWord=${encoded}`,
+          'tmap://'
+        ];
+        const storeUrl = 'https://apps.apple.com/kr/app/id431589174';
+
+        let step = 0;
+        const launches = [];
+        const tryNext = ()=>{
+          if(step >= candidates.length) return;
+          window.location.href = candidates[step++];
+          if(step < candidates.length){
+            launches.push(setTimeout(tryNext, 700));
           }
+        };
 
-          // 2) T맵 딥링크로 열기 (현재 위치 → 목적지 경로안내)
-          const appUrl = `tmap://route?rGoName=${encodeURIComponent(it.name||keyword)}&rGoX=${lon}&rGoY=${lat}`;
-          const storeUrl = 'https://apps.apple.com/kr/app/id431589174';
+        const storeTimer = setTimeout(()=>{
+          // 앱 미설치/스킴 실패 시 안내 (검색어는 이미 복사됨)
+          alert('티맵 검색어를 복사해뒀어요. 티맵이 열리면 붙여넣어 검색하면 돼요.\n\n복사된 검색어:\n' + keyword);
+          window.location.href = storeUrl;
+        }, 2600);
 
-          // 설치 안 된 경우 대비(실패하면 App Store로)
-          const timer = setTimeout(()=>{ window.location.href = storeUrl; }, 1200);
-          const onVis = ()=>{ if(document.hidden){ clearTimeout(timer); } };
-          document.addEventListener('visibilitychange', onVis, {once:true});
+        const onVis = ()=>{
+          if(document.hidden){
+            clearTimeout(storeTimer);
+            launches.forEach(clearTimeout);
+          }
+        };
+        document.addEventListener('visibilitychange', onVis, {once:true});
 
-          window.location.href = appUrl;
-
-        }catch(e){
-          // 좌표 변환이 실패하면: 주소를 복사해두고 안내
-          try{ await navigator.clipboard.writeText(keyword); }catch(_){}
-          alert('좌표를 못 찾았어요. 주소를 복사해뒀으니(또는 아래 주소를) 티맵에서 직접 검색해 주세요:\n\n' + keyword);
-        }
+        tryNext();
       };
       btnRow.appendChild(copyBtn);
       btnRow.appendChild(mapBtn);
