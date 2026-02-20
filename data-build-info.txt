@@ -1,4 +1,6 @@
 groups=8
-items=37
-missing_address=25
+items=42
+missing_address=1
 source=평내호평.docx
+
+v5.2: T맵 검색 우선(좌표변환 제거) 적용
